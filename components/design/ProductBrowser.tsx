@@ -1,4 +1,5 @@
 "use client";
+import ProductGallery from "@/components/design/ProductGallery";
 import { supplierProfileId } from "@/lib/supplier-profile";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -613,23 +614,7 @@ export default function ProductBrowser({
                   key={item.id}
                   className="group relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-sand transition-colors duration-200 hover:border-clay/60 focus-within:border-clay"
                 >
-                  <button
-                    type="button"
-                    onClick={() => setDetailId(item.id)}
-                    aria-label={`View ${item.name} details`}
-                    className="relative flex aspect-[16/10] w-full flex-none items-center justify-center overflow-hidden bg-cream"
-                  >
-                    {item.image ? (
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        loading="lazy"
-                        className={`absolute inset-0 h-full w-full transition-transform duration-500 motion-reduce:transition-none group-hover:scale-[1.025] ${item.demoOnly ? "object-contain p-3 sm:p-5" : "object-contain sm:object-cover"}`}
-                      />
-                    ) : (
-                      <span className="text-4xl">{item.icon}</span>
-                    )}
-                  </button>
+                  <ProductGallery item={item} view="catalogue" onOpen={() => setDetailId(item.id)} />
                   <div className="flex flex-1 flex-col p-2.5 sm:p-4">
                     <h3 className="font-serif text-base leading-snug sm:text-xl">
                       <button

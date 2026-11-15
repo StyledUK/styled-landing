@@ -1,4 +1,5 @@
 "use client";
+import ProductGallery from "@/components/design/ProductGallery";
 import {canRequestItem} from "@/lib/shopping";
 import useOutsideClick from "@/components/ui/useOutsideClick";
 import { supplierProfileId } from "@/lib/supplier-profile";
@@ -76,19 +77,7 @@ export default function ProductDetails({
       </nav>
       <div className={page ? "grid min-w-0 gap-6 lg:grid-cols-2 lg:gap-10" : ""}>
         <div className="min-w-0">
-          {item.image ? (
-            <img src={item.image} alt={item.name} className="aspect-[4/3] w-full rounded-xl bg-white object-contain p-4 transition-transform duration-500 motion-reduce:transition-none hover:scale-[1.015]" />
-          ) : (
-            <div className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-3 rounded-xl bg-sand/30 text-ink/60">
-              <span aria-hidden="true" className="text-4xl">{item.icon}</span>
-              <p className="text-sm">Photo not supplied</p>
-            </div>
-          )}
-          {item.gallery && <div className="mt-3 grid grid-cols-2 gap-3">
-            {item.gallery.map(photo => <a key={photo.src} href={photo.src} target="_blank" rel="noreferrer" aria-label={photo.alt + ", open full photo"}>
-              <img src={photo.src} alt={photo.alt} loading="lazy" className="aspect-[4/3] w-full rounded-lg object-contain bg-cream" />
-            </a>)}
-          </div>}
+          <ProductGallery key={item.id} item={item} view="details" />
           <details className="mt-2 text-sm text-ink/60">
             <summary className="inline-flex min-h-11 cursor-pointer items-center underline underline-offset-4">Image information</summary>
             <p>{imageDisclosure(item)}</p>
