@@ -1,3 +1,4 @@
+import ProductGallery from "@/components/design/ProductGallery";
 import {replyTargetLabel} from "@/lib/message-status";
 import {canRequestItem} from "@/lib/shopping";
 import Link from "next/link";
@@ -101,21 +102,7 @@ export default async function SupplierProfilePage({
             key={p.id}
             className="overflow-hidden rounded-2xl border border-sand bg-white shadow-sm"
           >
-            {p.image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={p.image}
-                alt={p.name}
-                className={p.demoOnly || p.imageKind === "supplier_reference" ? "aspect-[4/3] w-full bg-cream object-contain p-3" : "aspect-[4/3] w-full object-cover"}
-              />
-            ) : (
-              <div
-                className="flex aspect-[4/3] w-full items-center justify-center text-4xl"
-                style={{ backgroundColor: p.swatch }}
-              >
-                {p.icon}
-              </div>
-            )}
+            <ProductGallery item={p} view="supplier" />
             <div className="p-5">
               <p className="text-sm font-medium text-clay">
                 {vendorCategoryLabel(p.category)}
