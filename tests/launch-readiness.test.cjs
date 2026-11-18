@@ -69,3 +69,43 @@ test('live invites link only the approved workspace recipient and require live e
   assert.deepEqual(calls[1],['membership',{user_id:'fixture-user',supplier_id:id}]);
   assert.match(calls[2][1].text,/https:\/\/styleduk\.com\/auth\/invite/);
 });
+
+test('staff can submit a supplier range under their own identity with a publication record and real prices', async () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const declarations = {
+    availabilityMode:'manual', replyHours:48, listingPermission:true, imageRights:true,
+    publicImagePermission:true, aiReferencePermission:false, pricesConfirmed:true, termsConfirmed:true,
+    terms:'Fictional hire terms for the staged range.', notes:'', submissionSource:'Supplier',
+  };
+  let placeholder = false;
+  const calls = [];
+  const admin = {
+    from(table) {
+      const products = [{unit_price_pence:placeholder?0:10000,unit:placeholder?'price on request':'per day'}];
+      return {
+        select(){return this;}, eq(){return this;}, order(){return this;}, limit(){return this;},
+        async maybeSingle(){return {data:table==='suppliers'?{id}:{revision:1,state:'submitted'},error:null};},
+        then(resolve){resolve({data:table==='products'?products:[],error:null});},
+      };
+    },
+    async rpc(name,args){calls.push({name,args});return {error:null};},
+  };
+  const review = load('lib/server/supplier-review.ts', {
+    './staff':{requireStaff:async()=>({ok:true,user:{id:'actual-staff-actor'},admin})},
+    './vendor':{},
+    './supplier-body':{supplierJson:r=>r.json()},
+    '@/lib/booking-operations':{validRevision:n=>Number.isInteger(n)},
+  }).supplierReview;
+  const submit = patch => review(new Request('https://styleduk.com/api/review',{method:'POST',body:JSON.stringify({
+    action:'submit',revision:0,declarations:{...declarations,...patch},
+  })}),id,true);
+  assert.equal((await submit({})).status,422);
+  placeholder=true;
+  assert.equal((await submit({publicationEvidence:'Fictional photo licence reference'})).status,422);
+  assert.equal(calls.length,0);
+  placeholder=false;
+  assert.equal((await submit({publicationEvidence:'Fictional photo licence reference'})).status,200);
+  assert.equal(calls[0].args.p_actor,'actual-staff-actor');
+  assert.equal(calls[0].args.p_data.submissionSource,'Styled staff');
+  assert.equal(calls[0].args.p_data.publicationEvidence,'Fictional photo licence reference');
+});

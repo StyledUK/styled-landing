@@ -15,6 +15,19 @@ export async function supplierReview(req:Request,supplierId:string|undefined,sta
  const auth=staff?await requireStaff(req):await requireVendor(req);if(!auth.ok)return auth.response;const id=staff?supplierId:("supplierId" in auth?String(auth.supplierId):undefined);if(!id||!/^[0-9a-f-]{36}$/i.test(id))return fail(404,"Supplier not found.");
  try{if(req.method==="POST"){const b=await supplierJson(req,15000);if(!validRevision(b.revision))return fail(422,"Refresh before saving this review.");if(!["save","submit",...(staff?["approve","changes"]:[])].includes(b.action))return fail(403,"Staff approval is required to publish.");
  const data:Record<string,unknown>={};if(["save","submit"].includes(b.action)){const d=b.declarations;if(!d||!["manual","styled"].includes(d.availabilityMode))return fail(422,"Choose how you check availability.");for(const key of ["listingPermission","imageRights","publicImagePermission","aiReferencePermission","pricesConfirmed","termsConfirmed"]){if(typeof d[key]!=="boolean")return fail(422,"Check the range approvals.");data[key]=d[key];}if(typeof d.terms!=="string"||d.terms.length>5000||typeof d.notes!=="string"||d.notes.length>2000||!Number.isInteger(d.replyHours)||d.replyHours<1||d.replyHours>168)return fail(422,"Add terms, an agreed response target (1 to 168 hours), and brief notes.");Object.assign(data,{availabilityMode:d.availabilityMode,terms:d.terms.trim(),notes:d.notes.trim(),replyHours:d.replyHours});}
+ if (staff && ["save", "submit"].includes(b.action)) {
+   const evidence = typeof b.declarations.publicationEvidence === "string" ? b.declarations.publicationEvidence.trim() : "";
+   if (evidence.length > 1000 || (b.action === "submit" && !evidence)) return fail(422,"Record Styled’s permission to publish the listings and photos.");
+   data.submissionSource = "Styled staff";
+   data.publicationEvidence = evidence;
+   if (b.action === "submit") {
+     const { data: products, error } = await auth.admin.from("products").select("unit_price_pence,unit").eq("supplier_id",id);
+     if (error) return fail(503,"Could not verify the draft prices.");
+     if (products?.some(p => p.unit_price_pence === 0 && /price on request/i.test(p.unit))) {
+       return fail(422,"Resolve the price-on-request placeholders before submitting this range.");
+     }
+   }
+ }
  if(["approve","changes"].includes(b.action)){if(typeof b.feedback!=="string"||b.feedback.length>3000)return fail(422,"Keep feedback under 3,000 characters.");data.feedback=b.feedback.trim();}
  const result=await auth.admin.rpc("review_supplier_range",{p_supplier:id,p_revision:b.revision,p_actor:auth.user.id,p_action:b.action,p_data:data});if(result.error)return fail(409,result.error.message||"Range changed. Refresh and try again.");}
  return NextResponse.json({ok:true,...await reviewView(auth.admin,id)},{headers});
