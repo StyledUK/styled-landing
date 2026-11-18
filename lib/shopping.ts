@@ -6,8 +6,20 @@ export function purchaseAvailability(item: CatalogueItem, availability?: ItemAva
   return item.requestOnly ? undefined : availability;
 }
 
+export function isQuoteOnlyUnit(unit: string | undefined): boolean {
+  return unit?.trim().toLowerCase() === "price on request";
+}
+
+export function isQuoteOnlyItem(item: CatalogueItem): boolean {
+  return item.priceOnRequest === true && !item.demoOnly;
+}
+
+export function supplierQuoteHref(item: CatalogueItem): string {
+  return `/messages?supplier=${encodeURIComponent(item.supplierId ?? "")}`;
+}
+
 export function canRequestItem(item: CatalogueItem): boolean {
-  return !item.demoOnly || item.requestOnly === true;
+  return !isQuoteOnlyItem(item) && (!item.demoOnly || item.requestOnly === true);
 }
 
 /** Stock ceilings apply to the whole delivery window, never a fabricated stock label. */

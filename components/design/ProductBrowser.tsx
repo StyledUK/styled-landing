@@ -648,7 +648,7 @@ export default function ProductBrowser({
                           : <>{formatGBP(item.unitPrice)}{" "}<span className="text-xs text-ink/50">{item.unit}</span></>}
                     </p>
                     <div className="mt-3">
-                      {item.requestOnly || item.demoOnly ? (
+                      {item.requestOnly || item.demoOnly || item.priceOnRequest ? (
                         <span className="inline-flex rounded-full bg-clay/10 px-3 py-1 text-xs font-medium text-clay">Availability on request</span>
                       ) : (
                         availability.items?.[item.id] || item.stock === "made_to_order" ? <AvailabilityBadge

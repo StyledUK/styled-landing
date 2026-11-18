@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import type { CatalogueItem } from "@/lib/types";
+import { isQuoteOnlyItem } from "@/lib/shopping";
 import { previewStudioHref } from "@/lib/product-preview-navigation";
 
 export interface ProductPreviewSelectionProps {
@@ -20,6 +21,7 @@ export default function ProductPreviewSelection({
   disabled?: boolean;
   studioHref?: string;
 }) {
+  if (isQuoteOnlyItem(item)) return null;
   if (item.visualiserUse === "reference-pending") return <p className="text-xs text-ink/55">Preview photos are being prepared.</p>;
   if (item.category === "tents" && item.visualiserUse !== "outdoor") return null;
   const selected = selectedVisualiserIds.includes(item.id);

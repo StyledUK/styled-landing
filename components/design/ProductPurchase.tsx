@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { BasketLine, CatalogueItem } from "@/lib/types";
 import type { ItemAvailability } from "@/lib/availability";
 import { useCatalogue } from "@/components/catalogue/CatalogueProvider";
-import { canRequestItem, purchaseAvailability, quantityLimit, validQuantity } from "@/lib/shopping";
+import { canRequestItem, isQuoteOnlyItem, supplierQuoteHref, purchaseAvailability, quantityLimit, validQuantity } from "@/lib/shopping";
 import { oneDayDemoTotal } from "@/lib/demo-pricing";
 import { formatGBP } from "@/lib/quote";
 
@@ -37,6 +37,11 @@ export default function ProductPurchase({
   const blocked = catalogue.loading || !!catalogue.error;
   const limit = quantityLimit(availability);
   const short = availability?.status === "unavailable";
+  if (isQuoteOnlyItem(item)) return (
+    <Link href={supplierQuoteHref(item)} className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-ink px-3 py-2 text-center text-sm text-cream hover:bg-ink/90">
+      Ask for a quote
+    </Link>
+  );
   if (!canRequestItem(item)) return <ProductCharges item={item} compact={compact} />;
   return (
     <div className="mt-auto space-y-3 pt-4">

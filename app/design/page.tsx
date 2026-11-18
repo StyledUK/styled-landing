@@ -1,4 +1,6 @@
 "use client";
+
+import {canRequestItem,isQuoteOnlyItem} from "@/lib/shopping";
 import SkipLink from "@/components/ui/SkipLink";
 import {SupportButton} from "@/components/support/SupportProvider";
 
@@ -614,7 +616,7 @@ function DesignStudio() {
     }
     if (addedFromLink.current === id) return;
     const item = getItem(id);
-    if (item) {
+    if (item && canRequestItem(item)) {
       addedFromLink.current = id;
       setWorkspaceTouched(true);
       setBasket((lines) =>
@@ -652,7 +654,8 @@ function DesignStudio() {
     if (previewFromLink.current === id) return;
     const item = getItem(id);
     previewFromLink.current = id;
-    if (item) {
+    const canPreview = item && !isQuoteOnlyItem(item);
+    if (canPreview) {
       setWorkspaceTouched(true);
       setPreviewSelection((selection) => ({ ...selection, mode: "manual", itemIds: [...new Set([...selection.itemIds, item.id])], ...(item.visualiserUse === "outdoor" ? {environment: "outdoor" as const} : {}) }));
       setActionNotice(`${item.name} selected for this event’s preview. Your basket is unchanged.`);
@@ -661,7 +664,7 @@ function DesignStudio() {
     }
     const consumed = new URL(window.location.href);
     consumed.searchParams.delete("preview");
-    consumed.searchParams.set("tab", item ? "visualiser" : "catalogue");
+    consumed.searchParams.set("tab", canPreview ? "visualiser" : "catalogue");
     window.history.replaceState(null, "", consumed);
   }, [restored, workspaceLoaded, catalogueLoading, catalogueError, params, getItem, brief.venueId, venueScope?.slug]);
 
@@ -917,7 +920,7 @@ function DesignStudio() {
   }, [actionNotice]);
 
   function toggleVisualiserProduct(item: CatalogueItem) {
-    if (workspaceLock.current || activeEventRef.current !== activeEventId) return;
+    if (isQuoteOnlyItem(item) || workspaceLock.current || activeEventRef.current !== activeEventId) return;
     setWorkspaceTouched(true);
     setPreviewSelection((selection) => ({...togglePreviewItem(selection, item.id), ...(item.visualiserUse === "outdoor" ? {environment:selection.environment === "tent-interior" ? "tent-interior" as const : "outdoor" as const} : {})}));
   }
@@ -933,7 +936,7 @@ function DesignStudio() {
   }
 
   function addItem(item: CatalogueItem) {
-    if (workspaceLock.current || activeEventRef.current !== activeEventId) return;
+    if (!canRequestItem(item) || workspaceLock.current || activeEventRef.current !== activeEventId) return;
     setWorkspaceTouched(true);
     setBasket((b) => {
       if (b.some((l) => l.itemId === item.id)) return b;

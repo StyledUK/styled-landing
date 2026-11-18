@@ -9,6 +9,7 @@ import {
   EMPTY_PRODUCT_DETAILS,
   type ProductDraft,
 } from "@/lib/supplier-workspace";
+import { isQuoteOnlyUnit } from "@/lib/shopping";
 import { vendorCategoryLabel } from "@/lib/vendor-categories";
 type Product = {
   id: string;
@@ -241,7 +242,7 @@ export default function SupplierProducts() {
                   </div>
                   <p className="mt-2 text-sm text-ink/65">
                     {vendorCategoryLabel(p.category)} · £
-                    {(p.unitPricePence / 100).toFixed(2)} {p.unit}
+                    {isQuoteOnlyUnit(p.unit) ? "Price on request" : `£${(p.unitPricePence / 100).toFixed(2)} ${p.unit}`}
                   </p>
                   <p className="mt-2 text-xs text-ink/60">
                     {p.capacity === null

@@ -161,7 +161,7 @@ export default function LookProducts({
                     {i.priceOnRequest ? "Price on request" : i.demoOnly ? `One-day total ${formatGBP(oneDayDemoTotal(i)??0)}` : <>{formatGBP(i.unitPrice)}{" "}<span className="text-xs text-ink/60">{i.unit}</span></>}
                   </p>
                   <div className="mt-3">
-                    {!i.demoOnly && !i.requestOnly && <AvailabilityBadge availability={availability.items?.[i.id]} madeToOrder={i.stock === "made_to_order"}/>}
+                    {!i.demoOnly && !i.requestOnly && !i.priceOnRequest && <AvailabilityBadge availability={availability.items?.[i.id]} madeToOrder={i.stock === "made_to_order"}/>}
                     {i.dimensions&&<p className="mt-2 text-xs text-ink/60">{i.dimensions}</p>}
                   </div>
                   <ProductPurchase

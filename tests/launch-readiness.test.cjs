@@ -70,18 +70,18 @@ test('live invites link only the approved workspace recipient and require live e
   assert.match(calls[2][1].text,/https:\/\/styleduk\.com\/auth\/invite/);
 });
 
-test('staff can submit a supplier range under their own identity with a publication record and real prices', async () => {
+test('staff can submit a supplier range under their own identity with a publication record and valid pricing', async () => {
   const id = '11111111-1111-4111-8111-111111111111';
   const declarations = {
     availabilityMode:'manual', replyHours:48, listingPermission:true, imageRights:true,
     publicImagePermission:true, aiReferencePermission:false, pricesConfirmed:true, termsConfirmed:true,
     terms:'Fictional hire terms for the staged range.', notes:'', submissionSource:'Supplier',
   };
-  let placeholder = false;
+  let unit = "per day", price = 10000;
   const calls = [];
   const admin = {
     from(table) {
-      const products = [{unit_price_pence:placeholder?0:10000,unit:placeholder?'price on request':'per day'}];
+      const products = [{unit_price_pence:price,unit}];
       return {
         select(){return this;}, eq(){return this;}, order(){return this;}, limit(){return this;},
         async maybeSingle(){return {data:table==='suppliers'?{id}:{revision:1,state:'submitted'},error:null};},
@@ -100,10 +100,10 @@ test('staff can submit a supplier range under their own identity with a publicat
     action:'submit',revision:0,declarations:{...declarations,...patch},
   })}),id,true);
   assert.equal((await submit({})).status,422);
-  placeholder=true;
+  price=0;
   assert.equal((await submit({publicationEvidence:'Fictional photo licence reference'})).status,422);
   assert.equal(calls.length,0);
-  placeholder=false;
+  unit="price on request";
   assert.equal((await submit({publicationEvidence:'Fictional photo licence reference'})).status,200);
   assert.equal(calls[0].args.p_actor,'actual-staff-actor');
   assert.equal(calls[0].args.p_data.submissionSource,'Styled staff');

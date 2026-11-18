@@ -6,6 +6,7 @@ const Module = require('node:module');
 const ts = require('typescript');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
+let liveProducts = [];
 let catalogue = { loading: false, error: null };
 function load(relative, quantity) {
   const file = path.resolve(relative);
@@ -13,7 +14,7 @@ function load(relative, quantity) {
   const m = new Module(file, module);
   m.paths = module.paths;
   m.require = (id) => {
-    if (id === '@/lib/server/catalogue') return { loadCatalogue: async () => [] };
+    if (id === '@/lib/server/catalogue') return { loadCatalogue: async () => liveProducts };
     if (id === '@/lib/supabase/admin') return { createAdminClient: () => ({ from: () => { throw Error('Request-only quotes must not look up invented suppliers'); } }) };
     if (id === '@/components/availability/useAvailability') return { useBasketAvailability: () => ({ lines: Object.fromEntries(products.map(i=>[i.id,{status:'request_only',availableUnits:null,requiredQty:1}])), loading:false,error:null,checked:true,allAvailable:false }) };
     if (id === '@/components/session/useUser') return { useUser:()=>({email:'fixture@example.invalid'}) };
@@ -63,4 +64,22 @@ test('supplier-generated product IDs remain valid through basket validation',()=
  const id='supplier-12345678-1234-4234-8234-123456789012-87654321-4321-4321-8321-210987654321';
  assert.equal(validateBasket([{itemId:id,quantity:1}]).ok,true);
  assert.equal(validateBasket([{itemId:'x'.repeat(129),quantity:1}]).ok,false);
+});
+
+test('live price-on-request listings route the customer to the supplier and stay out of checkout', async () => {
+ const item = {...unknown, id:'mock-live-lighting', name:'Fixture chandelier', demoOnly:false, requestOnly:false, supplierId:'11111111-1111-4111-8111-111111111111'};
+ assert.equal(canRequestItem(item),false);
+ assert.equal(canRequestItem(unknown),true);
+ const html = render('components/design/ProductPurchase.tsx',{item,onAdd:noop});
+ assert.match(html,/Ask for a quote/);
+ assert.match(html,/messages\?supplier=11111111-1111-4111-8111-111111111111/);
+ assert.doesNotMatch(html,/Add to basket|£0/);
+ liveProducts=[item];
+ try {
+   const result=await priceBasket([{itemId:item.id,quantity:1}]);
+   assert.equal(result.status,422);
+   assert.match(result.error,/Ask the supplier for a quote/);
+ } finally {
+   liveProducts=[];
+ }
 });
