@@ -52,6 +52,7 @@ test('Alex’s four packages appear on the approved live aliases and development
     for (const host of ['styleduk.com','www.styleduk.com']) {
       const items = supplierPreviewCatalogue(new Request('https://' + host + '/api/catalogue'));
       assert.deepEqual(items.filter(p => p.supplier === 'Earth Village Events').map(p => p.id), products.map(p => p.id));
+      assert.equal(items.some(p => p.id.startsWith('demo-crescent-moon-')), false, 'Retired chandeliers must stay off both live aliases');
     }
     assert.deepEqual(supplierPreviewCatalogue(new Request('https://unrelated.invalid/api/catalogue')), []);
     process.env.STYLED_PUBLIC_DEMO_ENABLED='false';

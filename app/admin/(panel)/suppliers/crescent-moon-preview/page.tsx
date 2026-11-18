@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { crescentMoonPreviewAllowed } from '@/lib/server/development-request-catalogue';
 import products from '@/lib/crescent-moon-preview.json';
 
 export const metadata = {
@@ -14,6 +16,7 @@ const money = (amount: number) =>
   }).format(amount);
 
 export default function CrescentMoonPreview() {
+  if (!crescentMoonPreviewAllowed()) notFound();
   return (
     <section>
       <Link href="/admin/suppliers" className="inline-flex min-h-11 items-center text-sm underline">
