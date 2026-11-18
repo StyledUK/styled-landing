@@ -13,6 +13,15 @@ export function demoPreviewAllowed(req?: Request): boolean {
     && /^https:\/\/yfwqcidkfjzpwbylgnug\.supabase\.co\/?$/.test(process.env.NEXT_PUBLIC_SUPABASE_URL || "");
 }
 
+// The Crescent Moon rehearsal ended when the supplier received a live workspace.
+export function crescentMoonPreviewAllowed(req?: Request): boolean {
+  const host = req ? new URL(req.url).hostname : "";
+  const db = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  return !["styleduk.com", "www.styleduk.com"].includes(host)
+    && !/^https:\/\/yfwqcidkfjzpwbylgnug\.supabase\.co\/?$/.test(db)
+    && demoPreviewAllowed(req);
+}
+
 export function developmentRequestsAllowed(req?: Request): boolean {
   if (!demoPreviewAllowed(req)) return false;
   const host = req ? new URL(req.url).hostname : "";
@@ -24,7 +33,8 @@ export function developmentRequestsAllowed(req?: Request): boolean {
 
 export function supplierPreviewCatalogue(req?: Request) {
   if (!demoPreviewAllowed(req)) return [];
-  const items = [...crescentMoonDemoCatalogue(), ...earthVillageCatalogue()];
+  const chandeliers = crescentMoonPreviewAllowed(req) ? crescentMoonDemoCatalogue() : [];
+  const items = [...chandeliers, ...earthVillageCatalogue()];
   return items.filter(item => !linkedCrescentProduct(item.id));
 }
 

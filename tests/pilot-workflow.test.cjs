@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),Module=require('node:module'),ts=require('typescript');
 function load(file,stubs={}){const f=path.resolve(file),m=new Module(f,module);m.paths=module.paths;m.require=id=>{
-    if (id === '@/lib/server/development-request-catalogue') return { demoPreviewAllowed: req => process.env.NODE_ENV === 'development' || new URL(req.url).hostname === 'styledukprodprogress.vercel.app', developmentRequestCatalogue: () => [], requestSnapshot: () => { throw Error('No development requests in this fixture'); } };
+    if (id === '@/lib/server/development-request-catalogue') return { crescentMoonPreviewAllowed: req => process.env.NODE_ENV === 'development' || new URL(req.url).hostname === 'styledukprodprogress.vercel.app', developmentRequestCatalogue: () => [], requestSnapshot: () => { throw Error('No development requests in this fixture'); } };
 if(Object.hasOwn(stubs,id))return stubs[id];if(id.startsWith('@/'))return id.endsWith('.json')?require(path.resolve(id.slice(2))):load(id.slice(2)+'.ts',stubs);if(id.startsWith('.'))return load(path.resolve(path.dirname(f),id)+'.ts',stubs);return require(id);};m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,f);return m.exports;}
 const p=load('lib/pilot-workflow.ts'),now='2026-10-30T12:00:00Z',today=now.slice(0,10);
 const change=(s,a)=>p.pilotChange(s,a,now);

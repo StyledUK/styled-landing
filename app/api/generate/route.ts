@@ -1,5 +1,5 @@
 import {parseVisualiserEnvironment,isAlexTent} from "@/lib/visualiser-environment";
-import { demoPreviewAllowed } from "@/lib/server/development-request-catalogue";
+import { crescentMoonPreviewAllowed } from "@/lib/server/development-request-catalogue";
 import {choosePreviewProduct, namedProducts, ProductMatchError} from "@/lib/product-matching";
 import {loadProductReferences} from "@/lib/server/product-references";
 import {chandelierScaleInstruction} from "@/lib/chandelier-scale";
@@ -188,9 +188,9 @@ export async function POST(req: Request) {
 
   let environment;try{environment=parseVisualiserEnvironment(body.environment);}catch(e){return fail(400,(e as Error).message);}
   if(environment!=="indoor"||itemIds.some(isAlexTent)){const {startOutdoorRender}=await import("@/lib/server/outdoor-render");return startOutdoorRender({req,user,supabase,body,itemIds,selectionMode,brief,styleId:descriptionLed?null:styleId,setting,guestCount,weddingDate,deliveryDate,photoIds,inspirationPhotoIds,supplierId});}
-  const previewCatalogue = crescentMoonDemoCatalogue();
-  const previewIds = itemIds.filter(id => previewCatalogue.some(item => item.id === id));
-  const allowPreview = demoPreviewAllowed(req) && !supplierId && !sampleVenueId.startsWith("listing:");
+  const allowPreview = crescentMoonPreviewAllowed(req) && !supplierId && !sampleVenueId.startsWith("listing:");
+  const previewIds = itemIds.filter(id => id.startsWith("demo-crescent-moon-"));
+  const previewCatalogue = allowPreview ? crescentMoonDemoCatalogue() : [];
   if (previewIds.length && !allowPreview) return fail(422, "That preview product is not available within this venue or supplier selection.");
   if (previewIds.length > 1) return fail(422, "Use one reference lighting design per preview.");
   if (manual && body.demoReferenceId !== undefined && body.demoReferenceId !== (previewIds[0] || null)) return fail(422, "Update your selected products to change the preview reference.");
@@ -233,7 +233,7 @@ export async function POST(req: Request) {
       supplierId,
       venueSlug:sampleVenueId.startsWith("listing:")?sampleVenueId.slice(8):undefined,
       styleId: descriptionLed ? null : styleId,
-      chosenIds: itemIds.filter(id=>!crescentMoonDemoCatalogue().some(item=>item.id===id)),
+      chosenIds: itemIds.filter(id=>!previewCatalogue.some(item=>item.id===id)),
       brief,
       setting,
       weddingDate,
@@ -256,14 +256,14 @@ export async function POST(req: Request) {
 
   const demoReferenceId = body.demoReferenceId;
   let demoReference = typeof demoReferenceId === "string" && demoReferenceId
-    ? crescentMoonDemoCatalogue().find(item => item.id === demoReferenceId)
+    ? previewCatalogue.find(item => item.id === demoReferenceId)
     : undefined;
-  if (demoReferenceId && (!demoReference || !demoPreviewAllowed(req) || supplierId || sampleVenueId.startsWith("listing:"))) {
+  if (demoReferenceId && (!demoReference || !crescentMoonPreviewAllowed(req) || supplierId || sampleVenueId.startsWith("listing:"))) {
     return fail(422, "Choose a demo reference for an unrestricted development look.");
   }
   if(demoReferenceId===undefined) {
     try {
-      demoReference=choosePreviewProduct({catalogue:crescentMoonDemoCatalogue(),currentItems:items,brief:manual ? "" : brief,styleId:descriptionLed?null:styleId,chosenIds:[...itemIds,...namedProductIds],allow:demoPreviewAllowed(req)&&!supplierId&&!sampleVenueId.startsWith("listing:"),auto:!manual&&!parentRenderId});
+      demoReference=choosePreviewProduct({catalogue:previewCatalogue,currentItems:items,brief:manual ? "" : brief,styleId:descriptionLed?null:styleId,chosenIds:[...itemIds,...namedProductIds],allow:crescentMoonPreviewAllowed(req)&&!supplierId&&!sampleVenueId.startsWith("listing:"),auto:!manual&&!parentRenderId});
     } catch(error) {return fail(422,error instanceof Error?error.message:"Check the product names in your description.");}
   }
   if (demoReference) {
@@ -335,12 +335,12 @@ export async function POST(req: Request) {
     if((parent.lookReport as LookReport|null)?.environment && (parent.lookReport as LookReport).environment!=="indoor")return fail(422,"Reopen this outdoor preview with its outdoor setting before refining it.");
     base = parent.base;
     const inheritedDemoId = (parent.lookReport as LookReport | null)?.demoReference?.id;
-    const namedPreview=namedProducts(brief,crescentMoonDemoCatalogue());
+    const namedPreview=namedProducts(brief,previewCatalogue);
     const removedPreview=!!inheritedDemoId&&((!demoReference&&items.some(item=>namedProductIds.includes(item.id)&&item.category==="lighting"))||namedPreview.excludedIds.includes(inheritedDemoId)||/\b(?:no|without|avoid|remove) (?:any |the )?chandeliers?\b/i.test(brief));
     const selectedDemoId = manual ? demoReference?.id : body.demoReferenceId === null || removedPreview ? undefined : demoReference?.id || (body.demoReferenceId === undefined ? inheritedDemoId : undefined);
-    const inheritedDemo = selectedDemoId ? crescentMoonDemoCatalogue().find(item => item.id === selectedDemoId) : undefined;
+    const inheritedDemo = selectedDemoId ? previewCatalogue.find(item => item.id === selectedDemoId) : undefined;
     if (demoReference && (inheritedScope || inheritedVenue)) return fail(422, "Demo chandeliers cannot be used in a supplier-restricted look.");
-    if (inheritedDemo && demoPreviewAllowed(req) && !inheritedScope && !inheritedVenue) {
+    if (inheritedDemo && crescentMoonPreviewAllowed(req) && !inheritedScope && !inheritedVenue) {
       look.demoReference = { id: inheritedDemo.id, name: inheritedDemo.name, image: inheritedDemo.image };
       items = items.filter(item => item.category !== "lighting" || namedProductIds.includes(item.id) || itemIds.includes(item.id));
       look.items = look.items.filter(item => item.category !== "lighting" || namedProductIds.includes(item.id) || itemIds.includes(item.id));
