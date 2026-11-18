@@ -1,4 +1,5 @@
 import {linkedCrescentProduct,crescentTestSupplier} from "./crescent-call-demo";
+import {isQuoteOnlyUnit} from "@/lib/shopping";
 import {money} from "@/lib/supplier-workspace";
 import type { CatalogueItem, Category, QtyRule, Slot, StockStatus } from "@/lib/types";
 import type { SceneId } from "@/lib/scenes";
@@ -63,6 +64,7 @@ export async function loadCatalogue(supplierId?: string): Promise<ServerCatalogu
     .filter((r) => r.suppliers && r.category !== "stationery") // supplier switched off: product is unavailable too
     .map((r) => ({
       ...(linkedCrescentProduct(r.id) && r.suppliers!.id === crescentTestSupplier ? {imageKind:"supplier_reference" as const} : {}),
+      ...(r.image?.startsWith("/api/supplier-images/") ? {imageKind:"supplier" as const} : {}),
       id: r.id,
       name: r.name,
       category: r.category as Category,
@@ -70,7 +72,8 @@ export async function loadCatalogue(supplierId?: string): Promise<ServerCatalogu
       supplier: r.suppliers!.name,
       supplierArea: r.suppliers!.area,
       supplierServiceArea: r.suppliers!.service_details?.coverage || undefined,
-      unitPrice: r.unit_price_pence / 100,
+      unitPrice: isQuoteOnlyUnit(r.unit) ? 0 : r.unit_price_pence / 100,
+      priceOnRequest: isQuoteOnlyUnit(r.unit) || undefined,
       unit: r.unit,
       qtyRule: r.qty_rule as QtyRule,
       styles: r.styles ?? [],

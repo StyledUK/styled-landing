@@ -1,3 +1,4 @@
+import { isQuoteOnlyItem } from "@/lib/shopping";
 import {namedProducts, rankProducts, ProductMatchError} from "@/lib/product-matching";
 import {parseSupplierScope,scopeSupplierItems} from "@/lib/supplier-scope";
 import {venueCatalogue} from "./venue-catalogue";
@@ -43,7 +44,13 @@ export async function composeOrderableLook(opts: {
   autoFill?: boolean;
   substitute?: boolean;
 }): Promise<OrderableLook> {
-  const all = await loadCatalogue();
+  const publicItems = await loadCatalogue();
+  const quoteOnlyItems = publicItems.filter(isQuoteOnlyItem);
+  if (quoteOnlyItems.some(item => opts.chosenIds.includes(item.id))
+    || namedProducts(opts.brief || "", quoteOnlyItems).items.length) {
+    throw new ProductMatchError('Products priced on request are available from their supplier pages. Choose catalogue products with hire prices for this preview.');
+  }
+  const all = publicItems.filter(item => !isQuoteOnlyItem(item));
   const supplierId=parseSupplierScope(opts.supplierId);
   const scopedCatalogue=scopeSupplierItems(opts.venueSlug?(await venueCatalogue(opts.venueSlug,all)).items:all,supplierId);
   const allNamed=namedProducts(opts.brief||"",all);

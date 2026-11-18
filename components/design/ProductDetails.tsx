@@ -1,6 +1,6 @@
 "use client";
 import ProductGallery from "@/components/design/ProductGallery";
-import {canRequestItem} from "@/lib/shopping";
+import {canRequestItem,isQuoteOnlyItem,supplierQuoteHref} from "@/lib/shopping";
 import useOutsideClick from "@/components/ui/useOutsideClick";
 import { supplierProfileId } from "@/lib/supplier-profile";
 import Link from "next/link";
@@ -89,7 +89,7 @@ export default function ProductDetails({
           <p className="mt-3 text-sm">
             {supplierProfileId(item) ? <Link href={`/suppliers/${supplierProfileId(item)}`} className="inline-flex min-h-11 items-center text-clay underline underline-offset-4">{item.supplier}</Link> : item.supplier}
           </p>
-          {item.supplierId && /^[0-9a-f-]{36}$/i.test(item.supplierId) && <Link href={`/messages?supplier=${item.supplierId}`} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">Message supplier</Link>}
+          {!isQuoteOnlyItem(item) && item.supplierId && /^[0-9a-f-]{36}$/i.test(item.supplierId) && <Link href={`/messages?supplier=${item.supplierId}`} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">Message supplier</Link>}
           <p className="text-sm text-ink/60">{item.supplierArea || "Service area not supplied"}</p>
           {item.packageDetails && <div className="mt-5 divide-y divide-sand">
             {item.packageDetails.map(section => <details key={section.title} className="py-3">
@@ -104,10 +104,12 @@ export default function ProductDetails({
           {item.note && <p className="mt-4 whitespace-pre-line text-sm leading-relaxed">{item.note}</p>}
           <div className="mt-5 border-y border-sand py-3 text-sm">
             <p>{datesLabel || "Choose your event and hire dates in Wedding plan."}</p>
-            <p className="mt-2 text-clay">{item.requestOnly || item.demoOnly ? "Availability and final quote on request." : availability ? availabilityLabel(availability).label : "Date availability has not been checked."}</p>
+            <p className="mt-2 text-clay">{item.requestOnly || item.demoOnly || item.priceOnRequest ? "Availability and final quote on request." : availability ? availabilityLabel(availability).label : "Date availability has not been checked."}</p>
             <Link href="/design?tab=wedding" className="mt-1 inline-flex min-h-11 items-center underline underline-offset-4">Open Wedding plan</Link>
           </div>
-          {purchase.onAdd ? <ProductPurchase {...purchase} onAdd={purchase.onAdd} /> : studioHref && (
+          {purchase.onAdd ? <ProductPurchase {...purchase} onAdd={purchase.onAdd} /> : isQuoteOnlyItem(item) ? (
+            <Link href={supplierQuoteHref(item)} className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-ink px-5 py-3 text-sm text-cream hover:bg-ink/90">Ask for a quote</Link>
+          ) : studioHref && (
             <Link href={studioAddHref!} className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-ink px-5 py-3 text-center text-sm text-cream hover:bg-ink/90">{canRequestItem(item)?"Add to basket":"View in studio"}</Link>
           )}
           {!purchase.onAdd && item.demoOnly && <ProductCharges item={item} />}

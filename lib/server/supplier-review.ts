@@ -2,6 +2,7 @@ import {NextResponse} from "next/server";
 import {requireStaff} from "./staff";
 import {requireVendor} from "./vendor";
 import {supplierJson} from "./supplier-body";
+import {isQuoteOnlyUnit} from "@/lib/shopping";
 import {validRevision} from "@/lib/booking-operations";
 import type {SupabaseClient} from "@supabase/supabase-js";
 const headers={"Cache-Control":"private, no-store"};const fail=(status:number,error:string)=>NextResponse.json({error},{status,headers});
@@ -23,8 +24,8 @@ export async function supplierReview(req:Request,supplierId:string|undefined,sta
    if (b.action === "submit") {
      const { data: products, error } = await auth.admin.from("products").select("unit_price_pence,unit").eq("supplier_id",id);
      if (error) return fail(503,"Could not verify the draft prices.");
-     if (products?.some(p => p.unit_price_pence === 0 && /price on request/i.test(p.unit))) {
-       return fail(422,"Resolve the price-on-request placeholders before submitting this range.");
+     if (products?.some(p => p.unit_price_pence <= 0 && !isQuoteOnlyUnit(p.unit))) {
+       return fail(422,"Set a hire price or Price on request before submitting this range.");
      }
    }
  }

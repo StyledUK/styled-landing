@@ -1,3 +1,4 @@
+import {isQuoteOnlyItem} from "@/lib/shopping";
 import {supplierMinimumShortfalls} from "@/lib/supplier-minimum";
 import { loadCatalogue, type ServerCatalogueItem } from "@/lib/server/catalogue";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -79,6 +80,9 @@ export async function priceBasket(raw: unknown, req?: Request): Promise<PricedBa
       extra: { unavailable },
     };
   }
+
+  const quoteOnly = valid.lines.map(line => items.get(line.itemId)!).find(isQuoteOnlyItem);
+  if (quoteOnly) return { ok: false, status: 422, error: `Ask the supplier for a quote for ${quoteOnly.name}.` };
 
   const quote = quotePence(valid.lines, id => items.get(id));
   const currentPrices = new Map(quote.lines.map(l => [l.item.id, l.unitPricePence]));

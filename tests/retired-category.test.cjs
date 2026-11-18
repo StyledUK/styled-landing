@@ -14,15 +14,19 @@ test('historical retired listings cannot enter browsing or direct item lookups',
     select(){return this;}, eq(){return this;}, order(){return this;}, range(){return this;},
     async returns(){return {data:rows,error:null};},
   };
+  const shoppingFile = path.resolve('lib/shopping.ts');
+  const shopping = new Module(shoppingFile);
+  shopping._compile(ts.transpileModule(fs.readFileSync('lib/shopping.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,shoppingFile);
   const file = path.resolve('lib/server/catalogue.ts');
-  const module = new Module(file);
-  module.require = id => {
+  const catalogueModule = new Module(file);
+  catalogueModule.require = id => {
     if(id === '@/lib/supabase/anon') return {createAnonClient:()=>({from:()=>query})};
+    if(id === '@/lib/shopping') return shopping.exports;
     if(id === '@/lib/supplier-workspace') return {money:()=>0};
     if(id === './crescent-call-demo') return {linkedCrescentProduct:()=>false};
     throw Error('Unexpected runtime dependency: '+id);
   };
-  module._compile(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,file);
-  assert.deepEqual((await module.exports.loadCatalogue()).map(p=>p.id),['current-chair']);
-  assert.equal((await module.exports.loadItemsById(['old-invitations'])).size,0);
+  catalogueModule._compile(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,file);
+  assert.deepEqual((await catalogueModule.exports.loadCatalogue()).map(p=>p.id),['current-chair']);
+  assert.equal((await catalogueModule.exports.loadItemsById(['old-invitations'])).size,0);
 });

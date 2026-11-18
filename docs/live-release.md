@@ -15,3 +15,13 @@ Require a pull request and the GitHub Actions verify check on main, including fo
 Assign a primary and backup incident owner. Before relying on supplier bookings, test external downtime alerts, an actual supplier inbox delivery, and recovery of both a hosted database backup and its associated Storage images in isolation. Record the evidence and the last drill date. Keep a known working deployment and review support/email queue delays after each release.
 
 The Domain health workflow checks both hostnames twice daily (07:17 and 19:17 UTC), on successful GitHub Production deployment events and on manual dispatch. Review failed Actions notifications and verify both founders receive alerts. This lightweight check does not exercise database operations or replace independent uptime monitoring.
+
+### Staff-led catalogue enquiries, 18 November 2026
+
+Staff can prepare an initial supplier range and record publishing permission in
+the private review before approving it. For enquiry-only products, the price
+unit is `price on request`. The catalogue shows the label and links customers to
+the supplier’s inbox. The order server rejects these products before calculating
+a basket total. Enquiry-only products stay out of the priced visualiser look.
+Approval of a public photo remains separate from permission to use it in AI
+renders. No payment feature or database migration is included.

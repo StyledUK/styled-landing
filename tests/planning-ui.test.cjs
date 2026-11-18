@@ -267,10 +267,11 @@ test('public preview links select only catalogue-eligible products exactly once,
     ts.forEachChild(node, visit);
   }
   visit(file); assert.ok(effect);
+  const {isQuoteOnlyItem} = harness().load('lib/shopping');
   const vm = require('node:vm'), code = ts.transpileModule(`(${effect})()`, { compilerOptions: { target: ts.ScriptTarget.ES2020 } }).outputText;
   for (const eligible of [true, false]) {
     let selection = { itemIds: ['existing'], mode: 'auto' }, touched = false, destination;
-    const context = { brief: { venueId: 'manor_orangery' }, venueScope: null, restored: true, workspaceLoaded: true, catalogueLoading: false, catalogueError: null, params: new URLSearchParams('preview=demo-preview'), previewFromLink: { current: null }, getItem: () => eligible ? { id: 'demo-preview', name: 'Permitted demo', demoOnly: true } : undefined, setWorkspaceTouched: value => { touched = value; }, setPreviewSelection: update => { selection = update(selection); }, setActionNotice() {}, URL, window: { location: { href: 'https://development.test/design?preview=demo-preview' }, history: { replaceState(_a, _b, value) { destination = value; } } }, setBasket() { throw Error('Preview must not touch basket'); } };
+    const context = { isQuoteOnlyItem, brief: { venueId: 'manor_orangery' }, venueScope: null, restored: true, workspaceLoaded: true, catalogueLoading: false, catalogueError: null, params: new URLSearchParams('preview=demo-preview'), previewFromLink: { current: null }, getItem: () => eligible ? { id: 'demo-preview', name: 'Permitted demo', demoOnly: true } : undefined, setWorkspaceTouched: value => { touched = value; }, setPreviewSelection: update => { selection = update(selection); }, setActionNotice() {}, URL, window: { location: { href: 'https://development.test/design?preview=demo-preview' }, history: { replaceState(_a, _b, value) { destination = value; } } }, setBasket() { throw Error('Preview must not touch basket'); } };
     vm.runInNewContext(code, context);
     assert.equal(selection.itemIds.includes('demo-preview'), eligible);
     assert.equal(touched, eligible);
@@ -299,11 +300,12 @@ test('catalogue, visualiser and below-preview details share preview selection ca
   assert.equal(elements.get('RenderStage').itemIds, 'previewSelection.itemIds');
   assert.equal(elements.get('RenderStage').onRemoveItem, 'removePreviewItem');
   assert.equal(elements.get('RenderStage').onSelectionMode, 'changePreviewMode');
-  const h = harness(), { togglePreviewItem } = h.load('lib/event-plans'), vm = require('node:vm');
+  const h = harness(), { togglePreviewItem } = h.load('lib/event-plans'), { isQuoteOnlyItem } = h.load('lib/shopping'), vm = require('node:vm');
   let selection = { itemIds: ['one'], mode: 'manual' };
-  const context = { workspaceLock: { current: false }, activeEventRef: { current: 'event-a' }, activeEventId: 'event-a', togglePreviewItem, setWorkspaceTouched() {}, setPreviewSelection: update => { selection = update(selection); }, setBasket() { throw Error('Separate basket'); } };
+  const context = { isQuoteOnlyItem, workspaceLock: { current: false }, activeEventRef: { current: 'event-a' }, activeEventId: 'event-a', togglePreviewItem, setWorkspaceTouched() {}, setPreviewSelection: update => { selection = update(selection); }, setBasket() { throw Error('Separate basket'); } };
   const invoke = (name, argument) => vm.runInNewContext(ts.transpileModule(`${functions.get(name)}; ${name}(${JSON.stringify(argument)})`, { compilerOptions: { target: ts.ScriptTarget.ES2020 } }).outputText, context);
   invoke('toggleVisualiserProduct', { id: 'two', demoOnly: true }); assert.deepEqual([...selection.itemIds], ['one', 'two']);
+  invoke('toggleVisualiserProduct', { id: 'quote-only', priceOnRequest: true }); assert.deepEqual([...selection.itemIds], ['one', 'two']);
   invoke('changePreviewMode', 'auto'); assert.equal(selection.mode, 'auto'); assert.deepEqual([...selection.itemIds], ['one', 'two']);
   invoke('removePreviewItem', 'one'); assert.deepEqual([...selection.itemIds], ['two']);
   context.activeEventRef.current = 'event-b'; invoke('toggleVisualiserProduct', { id: 'stale' }); assert.deepEqual([...selection.itemIds], ['two']);
@@ -318,10 +320,11 @@ test('preview link waits for the restored venue catalogue and never consumes an 
     ts.forEachChild(node, visit);
   }
   visit(file); assert.ok(effect);
+  const {isQuoteOnlyItem} = harness().load('lib/shopping');
   const vm = require('node:vm'), code = ts.transpileModule(`(${effect})()`, { compilerOptions: { target: ts.ScriptTarget.ES2020 } }).outputText;
   for (const allowed of [false, true]) {
     let reads = 0, destination, selection = { itemIds: [], mode: 'manual' };
-    const context = { brief: { venueId: 'listing:restricted-venue' }, venueScope: null, restored: true, workspaceLoaded: true, catalogueLoading: false, catalogueError: null, params: new URLSearchParams('preview=product'), previewFromLink: { current: null }, getItem() { reads++; return { id: 'product', name: 'Unrestricted product' }; }, setWorkspaceTouched() {}, setPreviewSelection(update) { selection = update(selection); }, setActionNotice() {}, URL, window: { location: { href: 'https://development.test/design?preview=product' }, history: { replaceState(_a, _b, url) { destination = url; } } } };
+    const context = { isQuoteOnlyItem, brief: { venueId: 'listing:restricted-venue' }, venueScope: null, restored: true, workspaceLoaded: true, catalogueLoading: false, catalogueError: null, params: new URLSearchParams('preview=product'), previewFromLink: { current: null }, getItem() { reads++; return { id: 'product', name: 'Unrestricted product' }; }, setWorkspaceTouched() {}, setPreviewSelection(update) { selection = update(selection); }, setActionNotice() {}, URL, window: { location: { href: 'https://development.test/design?preview=product' }, history: { replaceState(_a, _b, url) { destination = url; } } } };
     const run = () => vm.runInNewContext(code, context);
     run(); // Restored venue effect has scheduled a restricted load; this render still holds the public catalogue.
     assert.equal(reads, 0); assert.equal(destination, undefined); assert.equal(context.previewFromLink.current, null);
@@ -336,7 +339,7 @@ test('preview link waits for the restored venue catalogue and never consumes an 
     run(); assert.equal(reads, 1);
   }
   let consumed = false;
-  const context = { brief: { venueId: 'manor_orangery' }, venueScope: { slug: 'previous-venue' }, restored: true, workspaceLoaded: true, catalogueLoading: false, catalogueError: null, params: new URLSearchParams('preview=product'), previewFromLink: { current: null }, getItem() { consumed = true; } };
+  const context = { isQuoteOnlyItem, brief: { venueId: 'manor_orangery' }, venueScope: { slug: 'previous-venue' }, restored: true, workspaceLoaded: true, catalogueLoading: false, catalogueError: null, params: new URLSearchParams('preview=product'), previewFromLink: { current: null }, getItem() { consumed = true; } };
   vm.runInNewContext(code, context);
   assert.equal(consumed, false); assert.equal(context.previewFromLink.current, null);
 });

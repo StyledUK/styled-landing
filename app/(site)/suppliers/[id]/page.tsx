@@ -1,6 +1,6 @@
 import ProductGallery from "@/components/design/ProductGallery";
 import {replyTargetLabel} from "@/lib/message-status";
-import {canRequestItem} from "@/lib/shopping";
+import {canRequestItem,isQuoteOnlyItem,supplierQuoteHref} from "@/lib/shopping";
 import Link from "next/link";
 import SupplierRules from "@/components/vendor/SupplierRules";
 import { notFound } from "next/navigation";
@@ -118,6 +118,7 @@ export default async function SupplierProfilePage({
               >
                 View product
               </Link>
+              {isQuoteOnlyItem(p)&&<Link href={supplierQuoteHref(p)} className="ml-3 mt-4 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Ask for a quote</Link>}
               {canRequestItem(p)&&<Link href={`/design?tab=catalogue&supplier=${encodeURIComponent(id === "crescent-moon" ? supplier.name : supplier.id)}&add=${encodeURIComponent(p.id)}`} className="ml-3 mt-4 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Add to basket</Link>}
             </div>
           </article>
