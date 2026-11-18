@@ -15,8 +15,57 @@ const delivery=load('lib/server/email-delivery.ts',{'./notify':{},'./env':{env}}
 test('webhook requires a long configured token and exact bearer authentication',()=>{const token='x'.repeat(40);assert.equal(delivery.authorisedWebhook('Bearer '+token,token),true);for(const secret of [undefined,'short',token+'z'])assert.equal(delivery.authorisedWebhook('Bearer '+token,secret),false);assert.equal(delivery.authorisedWebhook(null,token),false);});
 test('delivery events retain only a recipient hash, bounded identifier and authoritative UTC timestamp',()=>{const body={event:'delivered',email:'Staff@Example.com','message-id':'<test@provider>',ts_event:Math.floor(Date.now()/1000),'X-Mailin-custom':JSON.stringify({styledDelivery:'11111111-1111-4111-8111-111111111111'}),subject:'PRIVATE SUBJECT',reason:'PRIVATE BODY'};const e=delivery.parseDeliveryEvent(body);assert.equal(e.p_status,'delivered');assert.equal(e.p_message,'test@provider');assert.equal(e.p_recipient,delivery.recipientHash('staff@example.com'));assert.equal(e.p_run,'11111111-1111-4111-8111-111111111111');assert.doesNotMatch(JSON.stringify(e),/staff@|PRIVATE/);assert.deepEqual(delivery.parseDeliveryEvent(body),e);assert.equal(delivery.parseDeliveryEvent({...body,event:'opened'}),null);assert.throws(()=>delivery.parseDeliveryEvent({...body,ts_event:Date.now()}));assert.throws(()=>delivery.parseDeliveryEvent({...body,email:'bad'}));});
 test('unconfigured webhook refuses traffic before touching private data',async()=>{const old=process.env.BREVO_WEBHOOK_SECRET;delete process.env.BREVO_WEBHOOK_SECRET;try{const route=load('app/api/webhooks/brevo/route.ts',{'@/lib/server/email-delivery':delivery,'@/lib/supabase/admin':{createAdminClient:()=>{throw Error('Must not query');}}});assert.equal((await route.POST(new Request('https://styled.test/api/webhooks/brevo',{method:'POST',body:'{}'}))).status,401);}finally{if(old!==undefined)process.env.BREVO_WEBHOOK_SECRET=old;}});
-test('supplier invitations cannot create accounts without delivery configuration or explicit recipient approval',async()=>{let touched=false;const route=load('app/api/admin/suppliers/[id]/users/route.ts',{'@/lib/server/env':{env:{}},'@/lib/server/staff':{requireStaff:async()=>({ok:true,user:{id:'staff'},admin:{from:()=>{touched=true;throw Error('Must not provision');}}})},'@/lib/server/supplier-body':{supplierJson:async r=>r.json()},'@/lib/server/notify':{}});for(const confirmAccess of [false,true]){const response=await route.POST(new Request('https://styled.test',{method:'POST',body:JSON.stringify({email:'business@example.com',confirmAccess})}),{params:Promise.resolve({id:'supplier'})});assert.equal(response.status,confirmAccess?409:422);}assert.equal(touched,false);});
+test('supplier invitations cannot create accounts without delivery configuration or explicit recipient approval',async()=>{let touched=false;const route=load('app/api/admin/suppliers/[id]/users/route.ts',{'@/lib/server/env':{env:{}},'@/lib/server/staff':{requireStaff:async()=>({ok:true,user:{id:'staff'},admin:{from:()=>{touched=true;throw Error('Must not provision');}}})},'@/lib/server/supplier-body':{supplierJson:async r=>r.json()},'@/lib/server/notify':{}});for(const confirmAccess of [false,true]){const response=await route.POST(new Request('https://styled.test',{method:'POST',body:JSON.stringify({email:'business@example.com',confirmAccess})}),{params:Promise.resolve({id:'11111111-1111-4111-8111-111111111111'})});assert.equal(response.status,confirmAccess?409:422);}assert.equal(touched,false);});
 test('email scanners opening an invitation do not consume its credential',async()=>{const route=load('app/auth/invite/route.ts',{'@/lib/supabase/server':{createClient:()=>{throw Error('GET must not verify credentials');}}});const response=await route.GET(new Request('https://styled.test/auth/invite?token_hash=abc123&type=invite'));assert.equal(response.status,200);assert.match(await response.text(),/method="post"/);assert.equal(response.headers.get('Referrer-Policy'),'strict-origin');});
 test('invitation confirmation rejects cross-site requests before reading a token',async()=>{const route=load('app/auth/invite/route.ts',{'@/lib/supabase/server':{createClient:()=>{throw Error('Must not consume credentials');}}});const response=await route.POST(new Request('https://styled.test/auth/invite',{method:'POST',headers:{origin:'https://elsewhere.test'},body:'token_hash=abc123&type=invite'}));assert.equal(response.status,403);});
 test('accepted invitation verifies the expected OTP type and sends new account holders to choose their password',async()=>{let args;const route=load('app/auth/invite/route.ts',{'@/lib/supabase/server':{createClient:async()=>({auth:{verifyOtp:async a=>{args=a;return {data:{user:{id:'own-user',is_anonymous:false}},error:null};}}})}});const response=await route.POST(new Request('https://styled.test/auth/invite',{method:'POST',headers:{origin:'https://styled.test'},body:'token_hash=abc123&type=invite'}));assert.deepEqual(args,{token_hash:'abc123',type:'invite'});assert.equal(response.headers.get('location'),'https://styled.test/auth/reset?next=%2Fportal%2Fproducts&setup=supplier');});
 test('backup encryption authenticates data and source/restore guards refuse live systems',async()=>{const lib=await import('../scripts/backup-codec.mjs'),key=Buffer.alloc(32,7),plain=Buffer.from('Fictional restore fixture only');const encrypted=lib.encryptBackup(plain,key);assert.equal(encrypted.includes(plain),false);assert.deepEqual(lib.decryptBackup(encrypted,key),plain);const changed=Buffer.from(encrypted);changed[changed.length-1]^=1;assert.throws(()=>lib.decryptBackup(changed,key));assert.throws(()=>lib.devDatabase('postgresql://postgres:x@db.yfwqcidkfjzpwbylgnug.supabase.co/postgres'));assert.throws(()=>lib.localRestoreDatabase('postgresql://postgres:x@localhost/postgres'));assert.throws(()=>lib.localRestoreDatabase('postgresql://postgres:x@remote.test/styled_restore_qa'));assert.equal(lib.localRestoreDatabase('postgresql://postgres:x@localhost/styled_restore_qa').hostname,'localhost');});
+
+test('live invites link only the approved workspace recipient and require live email configuration', async () => {
+  const id = '11111111-1111-4111-8111-111111111111', email = 'approved@example.invalid';
+  const live = 'https://styleduk.com';
+  const calls = [];
+  const admin = {
+    from(table) {
+      const filters = {};
+      return {
+        select() { return this; },
+        eq(key, value) { filters[key] = value; return this; },
+        maybeSingle() {
+          if (table === 'vendor_applications') return { data: filters.supplier_id === id && filters.email === email && filters.status === 'accepted' ? { id } : null };
+          return { data: table === 'supplier_users' ? { supplier_id: id } : { id } };
+        },
+        upsert(row) { calls.push(['membership', row]); return {}; },
+        update() { return this; },
+      };
+    },
+    rpc: async () => ({data:true}),
+    auth: { admin: {
+      listUsers: async () => ({data:{users:[]}}),
+      generateLink: async args => {
+        calls.push(['auth', args]);
+        return {data:{user:{id:'fixture-user'},properties:{hashed_token:'fictional-only'}}};
+      },
+    } },
+  };
+  const make = config => load('app/api/admin/suppliers/[id]/users/route.ts', {
+    '@/lib/server/env':{env:config},
+    '@/lib/server/staff':{requireStaff:async()=>({ok:true,user:{id:'staff'},admin})},
+    '@/lib/server/supplier-body':{supplierJson:async r=>r.json()},
+    '@/lib/server/notify':{sendEmail:async body=>{calls.push(['email',body]);return true;}},
+  });
+  const config = {supabaseUrl:'https://yfwqcidkfjzpwbylgnug.supabase.co',siteUrl:live,resendApiKeyIfSet:'fixture-only'};
+  const send = (route, recipient, origin=live) => route.POST(new Request(origin+'/api/invite',{method:'POST',body:JSON.stringify({email:recipient,confirmAccess:true})}),{params:Promise.resolve({id})});
+  assert.equal((await send(make(config),'wrong@example.invalid')).status,409);
+  assert.equal((await send(make(config),email,'https://preview.vercel.app')).status,409);
+  assert.equal((await send(make({...config,resendApiKeyIfSet:undefined}),email)).status,409);
+  assert.deepEqual(calls,[]);
+  const response = await send(make(config),email);
+  assert.equal(response.status,200);
+  const body = await response.json();
+  assert.equal(body.invitationSent,true);
+  assert.doesNotMatch(JSON.stringify(body),/fictional-only/);
+  assert.deepEqual(calls[0],['auth',{type:'invite',email}]);
+  assert.deepEqual(calls[1],['membership',{user_id:'fixture-user',supplier_id:id}]);
+  assert.match(calls[2][1].text,/https:\/\/styleduk\.com\/auth\/invite/);
+});

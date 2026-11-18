@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { supplierJson } from "@/lib/server/supplier-body";
-import { environmentMatches } from "@/lib/pilot-readiness";
+import { environmentMatches, UUID } from "@/lib/pilot-readiness";
 import { env } from "@/lib/server/env";
 import { sendEmail } from "@/lib/server/notify";
 import { requireStaff } from "@/lib/server/staff";
@@ -9,6 +9,14 @@ export const dynamic = "force-dynamic";
 
 const fail = (status: number, error: string) => NextResponse.json({ ok: false, error }, { status,headers:{"Cache-Control":"no-store"} });
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Only the canonical live site can invite a live supplier. Preview builds and
+// mismatched environments must never generate credentials for a real account.
+function isLiveInvitation(req: Request) {
+  return env.supabaseUrl?.replace(/\/$/, "") === "https://yfwqcidkfjzpwbylgnug.supabase.co"
+    && env.siteUrl?.replace(/\/$/, "") === "https://styleduk.com"
+    && new URL(req.url).origin === "https://styleduk.com";
+}
 
 // GET /api/admin/suppliers/[id]/users: the login accounts linked to this supplier.
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -41,8 +49,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   try { body = await supplierJson(req, 3000); } catch { return fail(400, "Check the invitation form."); }
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   if (!EMAIL.test(email) || email.length > 160 || body.confirmAccess !== true) return fail(422, "Enter the supplier-approved email and confirm access.");
-  if(!environmentMatches(env.supabaseUrl,env.siteUrl))return fail(409,"Check the isolated development database and site URL before creating access.");
-  if (!env.brevoApiKeyIfSet && !env.resendApiKeyIfSet) return fail(409, "Connect development email first. No account or access was created.");
+  if (!UUID.test(id)) return fail(404, "Supplier not found.");
+  const live = isLiveInvitation(req);
+  const development = environmentMatches(env.supabaseUrl, env.siteUrl)
+    && new URL(req.url).origin === "https://styledukprodprogress.vercel.app";
+  if (!live && !development) return fail(409, "Open Applications on the configured Styled site to send an invitation.");
+  if (!env.brevoApiKeyIfSet && !env.resendApiKeyIfSet) {
+    return fail(409, "Invitation email is not configured for this site. No account or access was created.");
+  }
+  if (live) {
+    const { data: approved, error } = await admin.from("vendor_applications").select("id")
+      .eq("supplier_id", id).eq("email", email).eq("status", "accepted").maybeSingle();
+    if (error) return fail(503, "Could not verify the approved application.");
+    if (!approved) return fail(409, "Send the live invitation to the email on the approved application for this workspace.");
+  }
   const limited = await admin.rpc("hit_rate_limit", {p_key:`supplier-invite:${auth.user.id}`,p_limit:5,p_window_seconds:3600});
   if (limited.error || limited.data !== true) return fail(429, "Please wait before inviting more accounts.");
   const recipientLimit = await admin.rpc("hit_rate_limit", {p_key:`supplier-invite-recipient:${id}:${email}`,p_limit:1,p_window_seconds:60});
