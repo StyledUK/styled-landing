@@ -82,10 +82,10 @@ export default function VendorsPage() {
         "POST",
         { email: a.email, confirmAccess: reviewed[a.id] === true },
       );
-      if (!invite.ok)
+      if (!invite.ok || !invite.data?.invitationSent)
         throw Error(
           "Workspace created. " +
-            (invite.data?.error ||
+            (invite.data?.error || invite.data?.message ||
               "The invitation could not be sent. Open supplier access to retry."),
         );
       setNotice(invite.data.message);

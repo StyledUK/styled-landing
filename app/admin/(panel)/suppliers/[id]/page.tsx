@@ -135,7 +135,8 @@ export default function SupplierDetailPage() {
     });
     setCreatingLogin(false);
     if (!r.ok) return setError(r.data?.error ?? "Couldn't create the login.");
-    setInvitationNotice(r.data.message || "Invitation prepared.");
+    if (!r.data.invitationSent) return setError(r.data.message || "Invitation delivery was not confirmed.");
+    setInvitationNotice(r.data.message || "Invitation sent.");
     setConfirmAccess(false);
     setLoginEmail("");
     loadLogins();
