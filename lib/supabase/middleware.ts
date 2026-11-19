@@ -1,3 +1,4 @@
+import { staffCookieOptions } from "@/lib/auth/staff-session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
@@ -6,12 +7,14 @@ import { NextResponse, type NextRequest } from "next/server";
 const PROTECTED = ["/design"];
 
 export async function updateSession(request: NextRequest) {
+  const staffRoute = /^\/(?:admin|api\/admin)(?:\/|$)/.test(request.nextUrl.pathname);
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      ...(staffRoute ? {cookieOptions:staffCookieOptions} : {}),
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -34,6 +37,17 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  if (staffRoute) {
+    if (pathname !== "/admin/login" && pathname.startsWith("/admin") && (!user || user.is_anonymous || !user.email_confirmed_at)) {
+      const target = new URL("/admin/login", request.url);
+      target.searchParams.set("next", pathname + request.nextUrl.search);
+      const redirected = NextResponse.redirect(target);
+      response.cookies.getAll().forEach(cookie => redirected.cookies.set(cookie));
+      return redirected;
+    }
+    return response;
+  }
+
   if (pathname === "/" && user?.email_confirmed_at && !user.is_anonymous) {
     // The planner applies its existing supplier membership check on arrival.
     const redirect = NextResponse.redirect(new URL("/design?tab=wedding", request.url));

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter,usePathname } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+
 
 const LINKS = [
   {href:"/admin/pilot",label:"Pilot workflow template",match:(p:string)=>p.startsWith("/admin/pilot")},
@@ -56,8 +56,8 @@ export default function AdminNav({ email }: { email: string }) {
   const pathname = usePathname(),router=useRouter();
 
   async function signOut() {
-    await createClient().auth.signOut();
-    window.location.assign("/");
+    const response = await fetch("/auth/staff/signout", {method:"POST"});
+    if (response.ok) window.location.assign("/admin/login");
   }
 
   return (

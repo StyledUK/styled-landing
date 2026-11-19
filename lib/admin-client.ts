@@ -1,8 +1,8 @@
 "use client";
 
-// Small helpers for the staff screens: calling the staff API (and going back to
-// the home page if the session has ended — there's no public staff login to send
-// them to), and formatting for humans.
+import { staffDestination } from "@/lib/auth/staff-session";
+
+// Keep session expiry inside the dedicated staff login journey.
 
 export interface ApiResult {
   ok: boolean;
@@ -19,8 +19,9 @@ export async function adminApi(path: string, method: "GET" | "POST" | "PATCH" | 
     cache: "no-store",
   });
   const data = await res.json().catch(() => null);
-  if (res.status === 401 || res.status === 403) {
-    window.location.assign("/");
+  if (res.status === 401 && /^\/admin(?:\/|$)/.test(window.location.pathname) && window.location.pathname !== "/admin/login") {
+    const next = staffDestination(window.location.pathname + window.location.search);
+    window.location.replace("/admin/login?next=" + encodeURIComponent(next));
   }
   return { ok: res.ok && data?.ok !== false, status: res.status, data };
 }

@@ -22,8 +22,6 @@ export default function AccountMenu({
   const trigger=useRef<HTMLButtonElement>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  // Staff accounts also get a shortcut into the /admin dashboard.
-  const [isStaff, setIsStaff] = useState(false);
   const [workspaces, setWorkspaces] = useState({
     venue: false,
     supplier: false,
@@ -44,24 +42,6 @@ export default function AccountMenu({
         }
       })
       .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [email]);
-
-  useEffect(() => {
-    if (!email) {
-      setIsStaff(false);
-      return;
-    }
-    let active = true;
-    fetch("/api/admin/me", { cache: "no-store" })
-      .then((r) => {
-        if (active) setIsStaff(r.ok);
-      })
-      .catch(() => {
-        if (active) setIsStaff(false);
-      });
     return () => {
       active = false;
     };
@@ -127,17 +107,6 @@ export default function AccountMenu({
             <p className="truncate px-4 py-2 text-[11px] text-ink/40">
               {email}
             </p>
-            {isStaff && (
-              <a
-                href="/admin"
-                className="flex items-center justify-between px-4 py-2 text-left text-sm text-ink/70 hover:bg-cream hover:text-ink transition-colors"
-              >
-                Admin dashboard
-                <span className="rounded-full bg-ink px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-cream">
-                  Staff
-                </span>
-              </a>
-            )}
             {onOpenOrders ? (
               <button
                 type="button"
