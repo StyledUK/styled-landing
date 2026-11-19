@@ -25,3 +25,5 @@ the supplier’s inbox. The order server rejects these products before calculati
 a basket total. Enquiry-only products stay out of the priced visualiser look.
 Approval of a public photo remains separate from permission to use it in AI
 renders. No payment feature or database migration is included.
+
+19 November 2026. Repository ownership moved to StyledUK. The original styled-landing Vercel project now connects to StyledUK/styled-landing and deploys main. Project settings, domain mappings and environment mappings were compared before and after reconnection. This documentation-only release verifies the automatic main deployment trigger. Application code, payments and database are unchanged.
