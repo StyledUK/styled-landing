@@ -1,0 +1,57 @@
+name: Deployment smoke test
+
+on:
+  repository_dispatch:
+    # success bootstraps the check on projects that do not yet hold promotion.
+    types: [vercel.deployment.ready, vercel.deployment.success]
+
+permissions:
+  contents: read
+  actions: read
+  statuses: write
+
+concurrency:
+  group: deployment-smoke-${{ github.event.client_payload.id }}
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    if: github.event.sender.login == 'vercel[bot]' && github.event.client_payload.project.id == 'prj_eMZRdYAx6bcYaTmko8GHfr1tubaW'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Report status on the deployed commit
+        uses: vercel/repository-dispatch/actions/status@30f760c6640485cd92f8c785ef361382555fb712 # v1
+        with:
+          name: ${{ github.event.client_payload.environment == 'production' && 'Deployment smoke test' || 'Preview deployment smoke test' }}
+
+      # Use the runner from protected main, including when testing another revision.
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Check the exact deployment
+        env:
+          DEPLOYMENT_URL: ${{ github.event.client_payload.url }}
+          DEPLOYMENT_TARGET: ${{ github.event.client_payload.environment }}
+          DEPLOYMENT_REF: ${{ github.event.client_payload.git.ref }}
+          DEPLOYMENT_SHA: ${{ github.event.client_payload.git.sha }}
+          GH_TOKEN: ${{ github.token }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          set -eu
+          test -n "$VERCEL_AUTOMATION_BYPASS_SECRET" || { echo "Missing project automation secret"; exit 1; }
+          case "$DEPLOYMENT_TARGET" in
+            production)
+              test "$DEPLOYMENT_REF" = main
+              node scripts/smoke-deployment.mjs "$DEPLOYMENT_URL" --production ;;
+            preview)
+              # Only send the project credential to a deployment from a branch in this repository.
+              ref=$(jq -rn --arg ref "$DEPLOYMENT_REF" '$ref|@uri')
+              test "$(gh api "repos/$GITHUB_REPOSITORY/branches/$ref" --jq .commit.sha)" = "$DEPLOYMENT_SHA"
+              node scripts/smoke-deployment.mjs "$DEPLOYMENT_URL" ;;
+            *) echo "Unexpected deployment target"; exit 1 ;;
+          esac
