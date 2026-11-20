@@ -103,8 +103,8 @@ export function checkDeployEnv(env, { crons = 0 } = {}) {
     if (crons > 0 && blank(env.CRON_SECRET)) {
       warnings.push(`vercel.json declares ${crons} cron job(s) but CRON_SECRET is not set, so they all refuse to run.`);
     }
-  } else if (!blank(url) && trimSlash(url) === LIVE_SUPABASE_URL) {
-    warnings.push(`This ${target} deployment uses the LIVE database. Anything tested on it changes real data.`);
+  } else if (target === 'preview' && trimSlash(url) !== `https://${DEV_SUPABASE_REF}.supabase.co`) {
+    errors.push('Branch previews must use the Wedding Planner Dev database.');
   }
 
   return { skipped: false, errors, warnings };

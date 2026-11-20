@@ -62,8 +62,8 @@ test('guard warns, without blocking, about silent problems', async () => {
   assert.ok(r.warnings.some((w) => /CRON_SECRET/.test(w)));
   assert.ok(r.warnings.some((w) => /email provider/.test(w)));
   const preview = checkDeployEnv({ ...LIVE, VERCEL_ENV: 'preview', NEXT_PUBLIC_SITE_URL: '' });
-  assert.deepEqual(preview.errors, []);
-  assert.ok(preview.warnings.some((w) => /LIVE database/.test(w)));
+  assert.ok(preview.errors.some((e) => /Wedding Planner Dev/.test(e)));
+  assert.deepEqual(checkDeployEnv({ ...LIVE, VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: 'https://qkyeitvwscrxbiwamxan.supabase.co' }).errors, []);
 });
 
 // A tiny fake of styleduk.com, so the smoke test logic is exercised offline.
@@ -175,4 +175,13 @@ test('privileged keys are never accepted as browser keys, including legacy JWTs'
   for (const key of ['sb_secret_wrong', 'eyJfixture.' + claims + '.fixture']) {
     assert.ok(checkDeployEnv({ ...LIVE, NEXT_PUBLIC_SUPABASE_ANON_KEY: key }).errors.length);
   }
+});
+
+test('preview checks accept the development browser configuration and refuse production', async () => {
+  const { runSmoke } = await smoke();
+  const options = { baseUrl: 'https://preview.test', production: false };
+  assert.ok(failures(await runSmoke({ ...options, fetchImpl: fakeSite() })).some(n => n.includes('Browser code connects')));
+  assert.deepEqual(failures(await runSmoke({ ...options, fetchImpl: fakeSite({
+    '/_next/static/chunks/app.js': () => new Response('https://qkyeitvwscrxbiwamxan.supabase.co'),
+  }) })), []);
 });

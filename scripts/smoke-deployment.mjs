@@ -181,7 +181,8 @@ export async function runSmoke({ baseUrl, production = false, fetchImpl = fetch,
       for (const marker of DEV_MARKERS) must(!production || !js.includes(marker), `${src} references development (${marker})`);
     }
     must(refs.size > 0, 'no Supabase address found in the browser code');
-    if (production) must(refs.size === 1 && refs.has(LIVE_SUPABASE_REF), `browser code uses ${[...refs].join(', ')}`);
+    const expected = production ? LIVE_SUPABASE_REF : DEV_MARKERS[0];
+    must(refs.size === 1 && refs.has(expected), `browser code uses ${[...refs].join(', ')}`);
   });
 
   return results;
