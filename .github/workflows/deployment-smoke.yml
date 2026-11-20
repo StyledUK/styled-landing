@@ -2,8 +2,7 @@ name: Deployment smoke test
 
 on:
   repository_dispatch:
-    # success bootstraps the check on projects that do not yet hold promotion.
-    types: [vercel.deployment.ready, vercel.deployment.success]
+    types: [vercel.deployment.ready]
 
 permissions:
   contents: read
