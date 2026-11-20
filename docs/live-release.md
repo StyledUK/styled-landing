@@ -1,6 +1,6 @@
 # Releasing styleduk.com
 
-Daniel's public styled-landing repository, branch main, feeds the styled-landing Vercel project. Both styleduk.com and www.styleduk.com use this project. The production database is Wedding Planner (yfwqcidkfjzpwbylgnug). Feature development continues in styledukprodprogress with its own database.
+The StyledUK/styled-landing repository deploys its main branch to the styled-landing Vercel project. Both styleduk.com and www.styleduk.com use this project. The production database is Wedding Planner (yfwqcidkfjzpwbylgnug). Feature development continues in styledukprodprogress with its own database.
 
 1. Bring only the approved change across on a branch. Open a pull request. Record the previous Ready deployment URL and the commit being replaced.
 2. Review the diff and the GitHub Live release checks, including the isolated SQL fixtures, TypeScript, build and both sign-in forms. Inspect the Vercel preview. Keep private keys in the relevant provider settings.
@@ -39,3 +39,9 @@ Three layers now stand between a merge and styleduk.com:
 3. **Deployment smoke test** (`.github/workflows/deployment-smoke.yml`, `scripts/smoke-deployment.mjs`): Vercel sends `vercel.deployment.ready` before promotion. The workflow also accepts `vercel.deployment.success` to bootstrap a project without a gate. Production and preview use distinct commit statuses. The runner comes from protected main and only sends its Vercel credential to this project’s immutable hostname. The job makes read-only GET requests to that exact deployment: health, every public page and both sign-in forms, sign-in redirects, anonymous refusal of admin, supplier and cron APIs, the catalogue and venues loading from the database, 404 handling, robots.txt, the sitemap host and the Supabase project in the browser bundle. It never signs in or writes data. In Vercel > Settings > Deployment Checks, add "Deployment smoke test" as a required check so production keeps the previous deployment until it passes.
 
 Run the smoke test by hand at any time: `node scripts/smoke-deployment.mjs https://styleduk.com --production`. New branch previews must use Wedding Planner Dev. The build and browser checks reject a preview wired to production. Existing immutable previews retain the settings they were built with. Scheduled production jobs stay paused pending queue review. For a protected, immutable deployment URL, set `VERCEL_AUTOMATION_BYPASS_SECRET` first.
+
+### What to do when a release is held
+
+Open the candidate deployment in Vercel and follow **Deployment smoke test** to the GitHub Actions log. Match the deployment URL and commit before inspecting a failure. A preview result is a different check. If the candidate fails, leave the current domain assignment in place, fix the cause by pull request and check the new candidate. After promotion, confirm both public domains resolve to the successful deployment.
+
+The first rehearsal used live PR 15. On the isolated preview, all 31 hosted checks passed, including the browser’s connection to Wedding Planner Dev. GitHub and Vercel each passed the 506-test suite. The rollback address before installation was `styled-landing-geoyk7fhr-valorax-ai-s-projects.vercel.app`. The environment and deployment record is maintained in the [Styled knowledge base](https://github.com/StyledUK/styledukprodprogress/blob/main/docs/knowledge/current-state.md).
