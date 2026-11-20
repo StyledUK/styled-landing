@@ -2,8 +2,7 @@ name: Deployment smoke test
 
 on:
   repository_dispatch:
-    # success bootstraps the check on projects that do not yet hold promotion.
-    types: [vercel.deployment.ready, vercel.deployment.success]
+    types: [vercel.deployment.ready]
 
 permissions:
   contents: read
@@ -51,7 +50,9 @@ jobs:
             preview)
               # Only send the project credential to a deployment from a branch in this repository.
               ref=$(jq -rn --arg ref "$DEPLOYMENT_REF" '$ref|@uri')
-              test "$(gh api "repos/$GITHUB_REPOSITORY/branches/$ref" --jq .commit.sha)" = "$DEPLOYMENT_SHA"
+              branch_sha=$(gh api "repos/$GITHUB_REPOSITORY/branches/$ref" --jq .commit.sha)
+              # A later push can advance the branch while this immutable build is finishing.
+              gh api "repos/$GITHUB_REPOSITORY/compare/$DEPLOYMENT_SHA...$branch_sha" --jq .merge_base_commit.sha | grep -Fxq "$DEPLOYMENT_SHA"
               node scripts/smoke-deployment.mjs "$DEPLOYMENT_URL" ;;
             *) echo "Unexpected deployment target"; exit 1 ;;
           esac
