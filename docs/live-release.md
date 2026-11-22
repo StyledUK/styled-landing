@@ -4,7 +4,7 @@ The StyledUK/styled-landing repository deploys its main branch to the styled-lan
 
 1. Bring only the approved change across on a branch. Open a pull request. Record the previous Ready deployment URL and the commit being replaced.
 2. Review the diff and the GitHub Live release checks, including the isolated SQL fixtures, TypeScript, build and both sign-in forms. Inspect the Vercel preview. Keep private keys in the relevant provider settings.
-3. Obtain the domain owner's release approval. Merge the tested revision. Vercel repeats the fixture tests before building. Verify the resulting deployment has both live aliases, check /api/health, and exercise the changed customer or supplier journey with an authorised test account. Health only indicates that the app responds.
+3. Obtain the domain owner's release approval. Merge the tested revision. Vercel repeats the fixture tests before building. Follow the manual promotion procedure below. After promotion, verify both live aliases, check /api/health, and exercise the changed customer or supplier journey with an authorised test account. Health only indicates that the app responds.
 4. If the customer journey fails, stop further releases. In the live Vercel project's Deployments view roll back to the recorded working deployment, check both aliases and the affected journey, then revert the change by pull request before the next deployment.
 5. Review database migrations separately. Prefer backwards-compatible additions, verify a restorable backup before destructive changes, and rehearse in development. Rolling back Vercel does not restore database rows or Storage images.
 
@@ -50,10 +50,12 @@ The first rehearsal used live PR 15. On the isolated preview, all 31 hosted chec
 
 Each Vercel build has its own deployment ID, including builds made from the same commit. Keep **Auto-assign Custom Production Domains** off under the live project's Production environment. Stage Git and dashboard releases and avoid domain-assignment overrides. Keep the original commit check enabled as a second check.
 
-The production promotion job runs only after the smoke job for the same ready event succeeds. It verifies the tested URL, deployment ID, project, current main revision and newest production build. It promotes that ID and checks where both public domains resolve. A newer production candidate supersedes an older one. Preview jobs cannot enter the production promotion job.
+### Manual promotion checklist
 
-For automatic releases, restrict the GitHub environment `styled-live-promotion` to the `main` branch and store a dedicated `VERCEL_PROMOTION_TOKEN` there. Give the releasing identity only the access needed for this project, record its expiry and rotate it before that date. The protection-bypass credential continues to be used only for read-only smoke requests.
+1. In the live project's **Deployments**, select the newest Ready production build from main. Record the URL of the currently serving build for rollback.
+2. Open **Deployment smoke test** in GitHub Actions. In its successful run summary, match the immutable URL and deployment ID to the Vercel candidate. Confirm the revision is still the tip of main. Two builds of one revision have different IDs. A green commit badge alone is insufficient.
+3. If checks are missing or failed, keep serving the current release. Rerun that candidate's test if its configuration permits recovery, or test a replacement. A newer candidate needs its own result.
+4. A maintainer selects **Promote to Production** for the matched candidate in Vercel. GitHub only reports the result and has no promotion credential.
+5. Verify that both styleduk.com and www.styleduk.com resolve to the promoted deployment ID. Run the public smoke suite and confirm automatic domain assignment is still off. If needed, roll back to the recorded working deployment and verify both domains.
 
-**Recovery.** If the smoke test fails, leave the candidate staged. Correct the problem and rerun the test for that build, or test its replacement. If only promotion failed, check GitHub's release-job output and the candidate ID. A maintainer can promote that exact staged build after independently rerunning its protected production smoke test and checking main and the newest deployment. Verify both domains after promotion. Intentional rollbacks use the previously verified deployment. Review pending promotions and the auto-assignment setting after a rollback.
-
-**Acceptance drill.** Record both domain IDs. Redeploy the same production revision and deliberately fail that candidate's smoke run. Check both domains still serve the original ID after the failure. Restore the test credential, rerun the same candidate and check both domains move only after its own passing result. Finally rerun the public smoke suite. A successful public health check alone cannot prove the hold.
+For a same-revision rehearsal, record both domain IDs before rebuilding. Check them again after the staged build is Ready and after its smoke run. Both should still point to the previous deployment until a maintainer promotes the new ID.
