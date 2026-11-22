@@ -59,3 +59,7 @@ Each Vercel build has its own deployment ID, including builds made from the same
 5. Verify that both styleduk.com and www.styleduk.com resolve to the promoted deployment ID. Run the public smoke suite and confirm automatic domain assignment is still off. If needed, roll back to the recorded working deployment and verify both domains.
 
 For a same-revision rehearsal, record both domain IDs before rebuilding. Check them again after the staged build is Ready and after its smoke run. Both should still point to the previous deployment until a maintainer promotes the new ID.
+
+## Test notifications
+
+Every branch push runs the source suite. Open the [live test results](https://github.com/StyledUK/styled-landing/issues/19) to see the outcome and run link. Use the [shared release flow](https://github.com/StyledUK/styledukprodprogress/blob/main/docs/knowledge/push-to-release.md) to distinguish branch tests, pull-request checks, hosted checks and manual promotion.

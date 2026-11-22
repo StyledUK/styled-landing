@@ -1,16 +1,17 @@
 name: Live release checks
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
     branches: [main]
 permissions:
   contents: read
 concurrency:
-  group: live-checks-${{ github.ref }}
+  group: live-checks-${{ github.event_name == 'push' && github.run_id || github.ref }}
   cancel-in-progress: true
 jobs:
   verify:
+    name: ${{ github.event_name == 'pull_request' && 'verify' || 'Verify pushed revision' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:

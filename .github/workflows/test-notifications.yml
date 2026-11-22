@@ -1,0 +1,61 @@
+name: Notify maintainers of test results
+on:
+  deployment_status:
+  workflow_run:
+    workflows: ["Live release checks", "Deployment smoke test", "Domain health"]
+    types: [completed]
+
+# A default-branch reporter. It never checks out or executes the tested revision.
+permissions:
+  issues: write
+
+jobs:
+  notify:
+    if: >-
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.conclusion != 'skipped' &&
+      ((github.event.workflow_run.event == 'push' && github.event.workflow_run.name == 'Live release checks') ||
+       github.event.workflow_run.name == 'Deployment smoke test' ||
+       (github.event.workflow_run.conclusion != 'success' && github.event.workflow_run.conclusion != 'cancelled'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Notify Kamil and Daniel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ github.event.workflow_run.conclusion }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          CHECK_NAME: ${{ github.event.workflow_run.name }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -eu
+          case "$RESULT" in
+            success) label=Passed ;;
+            failure) label=Failed ;;
+            cancelled) label=Cancelled ;;
+            timed_out) label="Timed out" ;;
+            *) label="Needs attention ($RESULT)" ;;
+          esac
+          {
+            printf '@KamilGrant @danieldhesiii **%s** · %s\n\n' "$label" "$CHECK_NAME"
+            if [ "$CHECK_NAME" = 'Live release checks' ]; then
+              printf 'Revision `%.12s` · ' "$SHA"
+            fi
+            printf '[Open test run](%s/%s/actions/runs/%s/attempts/%s)\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$RUN_ID" "$ATTEMPT"
+          } | gh issue comment 19 --repo "$GITHUB_REPOSITORY" --body-file -
+
+  deployment-failed:
+    if: >-
+      github.event_name == 'deployment_status' && github.event.sender.login == 'vercel[bot]' &&
+      contains(fromJSON('["failure","error"]'), github.event.deployment_status.state)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Report a failed Vercel deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ID: ${{ github.event.deployment.id }}
+        run: |
+          printf '@KamilGrant @danieldhesiii **Deployment failed** · GitHub deployment `%s`. [Check deployments](%s/%s/deployments)\n' "$ID" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" |
+            gh issue comment 19 --repo "$GITHUB_REPOSITORY" --body-file -
