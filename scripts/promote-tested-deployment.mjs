@@ -22,12 +22,12 @@ export function verifyCandidate(event, latest, settings) {
   assert.equal('https://' + latest.url, event.DEPLOYMENT_URL);
 }
 
-async function release(env) {
+export async function release(env, request = fetch, wait = delay) {
   assert.ok(env.VERCEL_PROMOTION_TOKEN, 'Missing dedicated VERCEL_PROMOTION_TOKEN. Deployment stays staged.');
   async function api(path, method = 'GET') {
     const url = new URL(path, 'https://api.vercel.com');
     url.searchParams.set('slug', 'valorax-ai-s-projects');
-    const response = await fetch(url, {method, redirect: 'error', signal: AbortSignal.timeout(15000),
+    const response = await request(url, {method, redirect: 'error', signal: AbortSignal.timeout(15000),
       headers: {authorization: 'Bearer ' + env.VERCEL_PROMOTION_TOKEN}});
     if (!response.ok) throw Error(method + ' ' + url.pathname + ' returned ' + response.status);
     if (method === 'GET') return response.json();
@@ -41,7 +41,7 @@ async function release(env) {
     await api('/v10/projects/' + project + '/promote/' + env.DEPLOYMENT_ID, 'POST');
     for (let attempt = 0; attempt < 20; attempt++) {
       if (assigned(await assignments())) break;
-      await delay(3000);
+      await wait(3000);
     }
   }
   assert.ok(assigned(await assignments()), 'Verify both public domains before declaring this release complete.');
