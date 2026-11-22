@@ -56,3 +56,32 @@ jobs:
               node scripts/smoke-deployment.mjs "$DEPLOYMENT_URL" ;;
             *) echo "Unexpected deployment target"; exit 1 ;;
           esac
+
+  promote:
+    needs: smoke
+    environment: styled-live-promotion
+    if: github.event.client_payload.environment == 'production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    concurrency:
+      group: styled-live-domain-promotion
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Promote the exact tested production build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOYMENT_ID: ${{ github.event.client_payload.id }}
+          DEPLOYMENT_URL: ${{ github.event.client_payload.url }}
+          DEPLOYMENT_SHA: ${{ github.event.client_payload.git.sha }}
+          VERCEL_PROMOTION_TOKEN: ${{ secrets.VERCEL_PROMOTION_TOKEN }}
+        run: |
+          export MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
+          node scripts/promote-tested-deployment.mjs
