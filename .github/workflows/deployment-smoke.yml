@@ -56,3 +56,11 @@ jobs:
               node scripts/smoke-deployment.mjs "$DEPLOYMENT_URL" ;;
             *) echo "Unexpected deployment target"; exit 1 ;;
           esac
+
+      - name: Record the tested build for manual promotion
+        if: success() && github.event.client_payload.environment == 'production'
+        env:
+          DEPLOYMENT_ID: ${{ github.event.client_payload.id }}
+          DEPLOYMENT_URL: ${{ github.event.client_payload.url }}
+          DEPLOYMENT_SHA: ${{ github.event.client_payload.git.sha }}
+        run: node scripts/production-smoke-receipt.mjs >> "$GITHUB_STEP_SUMMARY"
